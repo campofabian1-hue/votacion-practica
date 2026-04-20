@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Práctica Profesional — Votación de Temáticas</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:    #2d3a8c;
+      --blue-lt: #e8ecff;
+      --accent:  #7b8cde;
+      --gray:    #f0f4ff;
+      --text:    #1e2a52;
+      --muted:   #6b7280;
+      --border:  #e2e8f0;
+      --green:   #059669;
+    }
+
+    body { font-family: 'Segoe UI', sans-serif; background: var(--gray); min-height: 100vh; }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--blue);
+      color: #fff;
+      padding: 0.9rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    nav h1 { font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; }
+    .nav-btns { display: flex; gap: 0.5rem; }
+    .nav-btn {
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      border: 2px solid rgba(255,255,255,0.4);
+      background: transparent;
+      color: #fff;
+      font-size: 0.83rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .nav-btn.active, .nav-btn:hover { background: rgba(255,255,255,0.2); border-color: #fff; }
+
+    /* ── PAGES ── */
+    .page { display: none; padding: 1.5rem 1rem 3rem; }
+    .page.active { display: block; }
+
+    /* ── CARD ── */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      padding: 1.75rem 1.5rem;
+      max-width: 700px;
+      margin: 0 auto 1.5rem;
+    }
+
+    /* ── STUDENT PAGE ── */
+    .page-header { text-align: center; margin-bottom: 1.5rem; }
+    .page-header h2 { color: var(--blue); font-size: 1.4rem; margin-bottom: 0.4rem; }
+    .page-header p  { color: var(--muted); font-size: 0.93rem; line-height: 1.5; }
+    .badge-min {
+      display: inline-block;
+      background: var(--blue-lt);
+      color: var(--blue);
+      border-radius: 20px;
+      padding: 0.28rem 0.9rem;
+      font-size: 0.83rem;
+      font-weight: 700;
+      margin-top: 0.5rem;
+    }
+
+    .cat-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin: 1.3rem 0 0.55rem;
+    }
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+    @media (max-width: 480px) { .options-grid { grid-template-columns: 1fr; } }
+
+    .option {
+      border: 2px solid var(--border);
+      border-radius: 9px;
+      padding: 0.65rem 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #fafbff;
+      user-select: none;
+    }
+    .option:hover { border-color: var(--accent); background: var(--blue-lt); }
+    .option.selected { border-color: var(--blue); background: var(--blue-lt); }
+    .option.selected .chk { background: var(--blue); border-color: var(--blue); }
+    .option.selected .chk::after { opacity: 1; }
+
+    .chk {
+      width: 19px; height: 19px;
+      border: 2px solid #cbd5e0;
+      border-radius: 5px;
+      flex-shrink: 0;
+      position: relative;
+      transition: all 0.15s;
+    }
+    .chk::after {
+      content: '';
+      position: absolute;
+      left: 3px; top: 0px;
+      width: 8px; height: 12px;
+      border: 2.5px solid #fff;
+      border-top: none; border-left: none;
+      transform: rotate(45deg);
+      opacity: 0;
+      transition: opacity 0.13s;
+    }
+    .opt-label { font-size: 0.88rem; color: var(--text); font-weight: 500; line-height: 1.3; }
+
+    .counter-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1.4rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .counter-text { font-size: 0.9rem; color: var(--muted); }
+    .counter-text strong { color: var(--blue); font-size: 1.05rem; }
+
+    .btn-primary {
+      padding: 0.75rem 2rem;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover:not(:disabled) { background: #1a2568; }
+    .btn-primary:disabled { background: #b0bad8; cursor: not-allowed; }
+
+    /* success */
+    .success-box {
+      display: none;
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+    .success-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+    .success-box h3 { color: var(--green); font-size: 1.2rem; margin-bottom: 0.4rem; }
+    .success-box p  { color: var(--muted); font-size: 0.9rem; }
+    .btn-secondary {
+      margin-top: 1rem;
+      padding: 0.6rem 1.5rem;
+      background: transparent;
+      border: 2px solid var(--blue);
+      color: var(--blue);
+      border-radius: 9px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .btn-secondary:hover { background: var(--blue-lt); }
+
+    /* ── TEACHER PAGE ── */
+    .lock-screen {
+      max-width: 360px;
+      margin: 2rem auto;
+      text-align: center;
+    }
+    .lock-screen h2 { color: var(--blue); margin-bottom: 0.3rem; }
+    .lock-screen p  { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.2rem; }
+    .lock-screen input {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .lock-screen input:focus { border-color: var(--blue); }
+    .lock-error { color: #dc2626; font-size: 0.83rem; margin-bottom: 0.5rem; min-height: 1em; }
+
+    /* dashboard */
+    #dashboard { display: none; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      max-width: 700px;
+      margin: 0 auto 1.5rem;
+    }
+    @media (max-width: 500px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      padding: 1rem;
+      text-align: center;
+    }
+    .stat-val { font-size: 2rem; font-weight: 800; color: var(--blue); line-height: 1; }
+    .stat-lbl { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      max-width: 700px;
+      margin: 0 auto 1.5rem;
+    }
+    @media (max-width: 600px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+    .chart-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      padding: 1.25rem;
+    }
+    .chart-card.full { grid-column: 1 / -1; }
+    .chart-card h3 { color: var(--blue); font-size: 0.95rem; margin-bottom: 1rem; }
+
+    /* ranking */
+    .ranking-list { list-style: none; }
+    .ranking-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+    .ranking-list li:last-child { border-bottom: none; }
+    .rank-pos {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--blue-lt);
+      color: var(--blue);
+      font-weight: 800;
+      font-size: 0.78rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .rank-pos.gold   { background: #fef3c7; color: #92400e; }
+    .rank-pos.silver { background: #f1f5f9; color: #475569; }
+    .rank-pos.bronze { background: #fdf2e9; color: #92400e; }
+    .rank-name { flex: 1; color: var(--text); font-weight: 500; }
+    .rank-bar-wrap { width: 80px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .rank-bar { height: 100%; background: linear-gradient(90deg, var(--blue), var(--accent)); border-radius: 4px; }
+    .rank-votes { font-weight: 700; color: var(--blue); min-width: 32px; text-align: right; }
+
+    /* actions */
+    .actions-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      max-width: 700px;
+      margin: 0 auto 1rem;
+    }
+    .btn-action {
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      border: 2px solid var(--blue);
+      color: var(--blue);
+      background: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .btn-action:hover { background: var(--blue-lt); }
+    .btn-action.danger { border-color: #dc2626; color: #dc2626; }
+    .btn-action.danger:hover { background: #fef2f2; }
+
+    /* import modal */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    }
+    .modal h3 { color: var(--blue); margin-bottom: 0.4rem; }
+    .modal p  { color: var(--muted); font-size: 0.88rem; margin-bottom: 0.75rem; }
+    .modal textarea {
+      width: 100%;
+      height: 130px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem;
+      font-size: 0.85rem;
+      resize: vertical;
+      outline: none;
+      font-family: monospace;
+    }
+    .modal textarea:focus { border-color: var(--blue); }
+    .modal-btns { display: flex; gap: 0.6rem; margin-top: 0.75rem; justify-content: flex-end; }
+
+    /* refresh indicator */
+    .refresh-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      max-width: 700px;
+      margin: 0 auto 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px; height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <h1>Práctica Profesional · Votación de Temáticas</h1>
+  <div class="nav-btns">
+    <button class="nav-btn active" id="btn-nav-student" onclick="showPage('student')">Estudiante</button>
+    <button class="nav-btn"        id="btn-nav-teacher" onclick="showPage('teacher')">Docente</button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════
+     PÁGINA ESTUDIANTE
+════════════════════════════════════════ -->
+<div class="page active" id="page-student">
+  <div class="card">
+    <!-- formulario -->
+    <div id="form-section">
+      <div class="page-header">
+        <h2>¿Qué quieres aprender en tu práctica?</h2>
+        <p>Selecciona <strong>exactamente 4 temáticas</strong> que te gustaría fortalecer durante tu primera experiencia laboral.</p>
+        <span class="badge-min" id="badge-min">0 / 4 seleccionadas</span>
+      </div>
+
+      <div class="cat-title">Habilidades Técnicas y Profesionales</div>
+      <div class="options-grid">
+        <div class="option" data-id="1"><div class="chk"></div><span class="opt-label">Gestión del tiempo y productividad</span></div>
+        <div class="option" data-id="2"><div class="chk"></div><span class="opt-label">Comunicación efectiva en el trabajo</span></div>
+        <div class="option" data-id="3"><div class="chk"></div><span class="opt-label">Trabajo en equipo multidisciplinario</span></div>
+        <div class="option" data-id="4"><div class="chk"></div><span class="opt-label">Herramientas colaborativas (Jira, Notion, Git…)</span></div>
+      </div>
+
+      <div class="cat-title">Desarrollo Personal</div>
+      <div class="options-grid">
+        <div class="option" data-id="5"><div class="chk"></div><span class="opt-label">Marca personal y LinkedIn</span></div>
+        <div class="option" data-id="6"><div class="chk"></div><span class="opt-label">Inteligencia emocional laboral</span></div>
+        <div class="option" data-id="7"><div class="chk"></div><span class="opt-label">Dar y recibir retroalimentación</span></div>
+        <div class="option" data-id="8"><div class="chk"></div><span class="opt-label">Mentoría y networking profesional</span></div>
+      </div>
+
+      <div class="cat-title">Contexto Organizacional</div>
+      <div class="options-grid">
+        <div class="option" data-id="9"><div class="chk"></div><span class="opt-label">Adaptación a la cultura organizacional</span></div>
+        <div class="option" data-id="10"><div class="chk"></div><span class="opt-label">Ética profesional y toma de decisiones</span></div>
+        <div class="option" data-id="11"><div class="chk"></div><span class="opt-label">Manejo de errores en el trabajo</span></div>
+        <div class="option" data-id="12"><div class="chk"></div><span class="opt-label">Diferencias academia vs. empresa</span></div>
+      </div>
+
+      <div class="cat-title">Tendencias e Innovación</div>
+      <div class="options-grid">
+        <div class="option" data-id="13"><div class="chk"></div><span class="opt-label">IA como herramienta de productividad</span></div>
+        <div class="option" data-id="14"><div class="chk"></div><span class="opt-label">Emprendimiento vs. empleabilidad</span></div>
+        <div class="option" data-id="15"><div class="chk"></div><span class="opt-label">Seguridad de la información</span></div>
+        <div class="option" data-id="16"><div class="chk"></div><span class="opt-label">Presentaciones ejecutivas efectivas</span></div>
+      </div>
+
+      <div class="counter-row">
+        <span class="counter-text">Seleccionadas: <strong id="sel-count">0</strong></span>
+        <button class="btn-primary" id="btn-submit" disabled onclick="submitVote()">Enviar mi votación ✓</button>
+      </div>
+    </div>
+
+    <!-- éxito -->
+    <div class="success-box" id="success-section">
+      <div class="success-icon">🎉</div>
+      <h3>¡Voto registrado!</h3>
+      <p>Gracias por participar. Tu docente podrá ver los resultados en tiempo real en el panel de Docente.</p>
+      <button class="btn-secondary" onclick="resetStudent()">Votar nuevamente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PÁGINA DOCENTE
+════════════════════════════════════════ -->
+<div class="page" id="page-teacher">
+
+  <!-- lock -->
+  <div class="card lock-screen" id="lock-screen">
+    <div style="font-size:2.5rem;margin-bottom:0.5rem">🔒</div>
+    <h2>Acceso Docente</h2>
+    <p>Ingresa la contraseña para ver el dashboard de resultados.</p>
+    <input type="password" id="pwd-input" placeholder="Contraseña" onkeydown="if(event.key==='Enter')checkPwd()" />
+    <p class="lock-error" id="lock-error"></p>
+    <button class="btn-primary" style="width:100%" onclick="checkPwd()">Ingresar</button>
+    <p style="margin-top:0.75rem;font-size:0.78rem;color:var(--muted)">Contraseña por defecto: <strong>docente2024</strong></p>
+  </div>
+
+  <!-- dashboard -->
+  <div id="dashboard">
+
+    <div class="refresh-row">
+      <div class="dot"></div>
+      Actualizando en tiempo real · última actualización: <span id="last-update">—</span>
+    </div>
+
+    <!-- stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="stat-students">0</div>
+        <div class="stat-lbl">Estudiantes votaron</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-total">0</div>
+        <div class="stat-lbl">Selecciones totales</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-avg">0</div>
+        <div class="stat-lbl">Promedio por estudiante</div>
+      </div>
+    </div>
+
+    <!-- acciones -->
+    <div class="actions-row">
+      <button class="btn-action" onclick="exportData()">⬇ Exportar JSON</button>
+      <button class="btn-action" onclick="openImport()">⬆ Importar votos</button>
+      <button class="btn-action" onclick="refreshDashboard()">↻ Actualizar</button>
+      <button class="btn-action danger" onclick="clearData()">🗑 Limpiar datos</button>
+    </div>
+
+    <!-- gráficas -->
+    <div class="dashboard-grid">
+
+      <div class="chart-card full">
+        <h3>Todas las temáticas — votos totales</h3>
+        <canvas id="chart-bar" height="130"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Top 5 más votadas</h3>
+        <canvas id="chart-doughnut"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Ranking completo</h3>
+        <ol class="ranking-list" id="ranking-list"></ol>
+      </div>
+
+      <div class="chart-card full">
+        <h3>Distribución por categoría</h3>
+        <canvas id="chart-radar" height="90"></canvas>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════ MODAL IMPORTAR ══════ -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <h3>Importar votos externos</h3>
+    <p>Pega aquí el JSON exportado desde otro dispositivo. Los votos se sumarán a los actuales.</p>
+    <textarea id="import-text" placeholder='{"1":5,"2":3,...}'></textarea>
+    <p style="font-size:0.78rem;color:#dc2626;min-height:1em" id="import-error"></p>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeImport()">Cancelar</button>
+      <button class="btn-primary" onclick="doImport()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─────────────── DATOS ─────────────── */
+const VOTES_KEY    = 'pp_votes_v2';
+const STUDENTS_KEY = 'pp_students_v2';
+
+const LABELS = {
+  1:'Gestión del tiempo',       2:'Comunicación efectiva',
+  3:'Trabajo en equipo',        4:'Herramientas colaborativas',
+  5:'Marca personal / LinkedIn',6:'Inteligencia emocional',
+  7:'Dar y recibir feedback',   8:'Mentoría y networking',
+  9:'Cultura organizacional',   10:'Ética profesional',
+  11:'Manejo de errores',       12:'Academia vs. empresa',
+  13:'IA productividad',        14:'Emprendimiento vs. empleo',
+  15:'Seguridad información',   16:'Presentaciones ejecutivas'
+};
+
+const CATEGORIES = {
+  'Técnicas y Profesionales': [1,2,3,4],
+  'Desarrollo Personal':      [5,6,7,8],
+  'Contexto Organizacional':  [9,10,11,12],
+  'Tendencias e Innovación':  [13,14,15,16]
+};
+
+const COLORS = ['#2d3a8c','#7b8cde','#059669','#f59e0b','#dc2626'];
+const TEACHER_PWD = 'docente2024';
+
+function getVotes()    { try { return JSON.parse(localStorage.getItem(VOTES_KEY))    || {}; } catch { return {}; } }
+function getStudents() { try { return JSON.parse(localStorage.getItem(STUDENTS_KEY)) || 0;  } catch { return 0;  } }
+function saveVotes(v)    { localStorage.setItem(VOTES_KEY,    JSON.stringify(v)); }
+function saveStudents(n) { localStorage.setItem(STUDENTS_KEY, JSON.stringify(n)); }
+
+/* ─────────────── NAVEGACIÓN ─────────────── */
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('btn-nav-' + page).classList.add('active');
+}
+
+/* ─────────────── ESTUDIANTE ─────────────── */
+let selected = new Set();
+
+document.querySelectorAll('.option').forEach(el => {
+  el.addEventListener('click', () => {
+    const id = el.dataset.id;
+    if (selected.has(id)) {
+      selected.delete(id);
+      el.classList.remove('selected');
+    } else {
+      if (selected.size >= 4) return;
+      selected.add(id);
+      el.classList.add('selected');
+    }
+    updateBadge();
+  });
+});
+
+function updateBadge() {
+  const n = selected.size;
+  document.getElementById('sel-count').textContent = n;
+  document.getElementById('badge-min').textContent  = `${n} / 4 seleccionadas`;
+  document.getElementById('btn-submit').disabled = n !== 4;
+  document.querySelectorAll('.option:not(.selected)').forEach(el => {
+    el.style.opacity  = n >= 4 ? '0.4' : '1';
+    el.style.cursor   = n >= 4 ? 'not-allowed' : 'pointer';
+    el.style.pointerEvents = n >= 4 ? 'none' : 'auto';
+  });
+  document.querySelectorAll('.option.selected').forEach(el => {
+    el.style.opacity = '1';
+    el.style.cursor  = 'pointer';
+    el.style.pointerEvents = 'auto';
+  });
+}
+
+function submitVote() {
+  const votes = getVotes();
+  selected.forEach(id => { votes[id] = (votes[id] || 0) + 1; });
+  saveVotes(votes);
+  saveStudents(getStudents() + 1);
+  document.getElementById('form-section').style.display    = 'none';
+  document.getElementById('success-section').style.display = 'block';
+}
+
+function resetStudent() {
+  selected.clear();
+  document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+  updateBadge();
+  document.getElementById('form-section').style.display    = 'block';
+  document.getElementById('success-section').style.display = 'none';
+}
+
+/* ─────────────── DOCENTE — LOGIN ─────────────── */
+function checkPwd() {
+  const val = document.getElementById('pwd-input').value;
+  if (val === TEACHER_PWD) {
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display   = 'block';
+    refreshDashboard();
+  } else {
+    document.getElementById('lock-error').textContent = 'Contraseña incorrecta. Intenta de nuevo.';
+    document.getElementById('pwd-input').value = '';
+  }
+}
+
+/* ─────────────── DASHBOARD ─────────────── */
+let barChart = null, doughnutChart = null, radarChart = null;
+
+function refreshDashboard() {
+  const votes    = getVotes();
+  const students = getStudents();
+  const total    = Object.values(votes).reduce((a,b) => a+b, 0);
+
+  document.getElementById('stat-students').textContent = students;
+  document.getElementById('stat-total').textContent    = total;
+  document.getElementById('stat-avg').textContent      = students > 0 ? (total/students).toFixed(1) : '0';
+  document.getElementById('last-update').textContent   = new Date().toLocaleTimeString('es');
+
+  const ids   = Object.keys(LABELS).map(Number);
+  const vals  = ids.map(id => votes[id] || 0);
+  const short = ids.map(id => LABELS[id]);
+
+  /* ── Bar chart ── */
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('chart-bar'), {
+    type: 'bar',
+    data: {
+      labels: short,
+      datasets: [{ label: 'Votos', data: vals,
+        backgroundColor: '#2d3a8c', borderRadius: 6, borderSkipped: false }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        x: { ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+
+  /* ── Doughnut top 5 ── */
+  const sorted = ids.map((id,i) => ({ id, val: vals[i], label: LABELS[id] }))
+                    .sort((a,b) => b.val - a.val).slice(0,5);
+
+  if (doughnutChart) doughnutChart.destroy();
+  doughnutChart = new Chart(document.getElementById('chart-doughnut'), {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(s => s.label),
+      datasets: [{ data: sorted.map(s => s.val), backgroundColor: COLORS,
+        borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } }
+    }
+  });
+
+  /* ── Radar por categoría ── */
+  const catLabels = Object.keys(CATEGORIES);
+  const catVals   = catLabels.map(cat =>
+    CATEGORIES[cat].reduce((sum, id) => sum + (votes[id] || 0), 0)
+  );
+  if (radarChart) radarChart.destroy();
+  radarChart = new Chart(document.getElementById('chart-radar'), {
+    type: 'radar',
+    data: {
+      labels: catLabels,
+      datasets: [{
+        label: 'Votos por categoría',
+        data: catVals,
+        backgroundColor: 'rgba(45,58,140,0.18)',
+        borderColor: '#2d3a8c',
+        pointBackgroundColor: '#2d3a8c',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { r: { beginAtZero: true, ticks: { stepSize: 1 } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  /* ── Ranking ── */
+  const allSorted = ids.map((id,i) => ({ id, val: vals[i], label: LABELS[id] }))
+                       .sort((a,b) => b.val - a.val);
+  const maxV = allSorted[0]?.val || 1;
+  const posClass = (i) => i===0 ? 'gold' : i===1 ? 'silver' : i===2 ? 'bronze' : '';
+
+  document.getElementById('ranking-list').innerHTML = allSorted.map((item, i) => `
+    <li>
+      <div class="rank-pos ${posClass(i)}">${i+1}</div>
+      <span class="rank-name">${item.label}</span>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${Math.round(item.val/maxV*100)}%"></div></div>
+      <span class="rank-votes">${item.val}</span>
+    </li>`).join('');
+}
+
+/* auto-refresh cada 15 segundos */
+setInterval(() => {
+  if (document.getElementById('dashboard').style.display !== 'none') refreshDashboard();
+}, 15000);
+
+/* ─────────────── EXPORTAR / IMPORTAR ─────────────── */
+function exportData() {
+  const data = { votes: getVotes(), students: getStudents(), exported: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `votos_practica_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function openImport()  { document.getElementById('import-modal').classList.add('open'); }
+function closeImport() {
+  document.getElementById('import-modal').classList.remove('open');
+  document.getElementById('import-text').value  = '';
+  document.getElementById('import-error').textContent = '';
+}
+
+function doImport() {
+  try {
+    const raw  = document.getElementById('import-text').value.trim();
+    const parsed = JSON.parse(raw);
+    const incoming = parsed.votes || parsed;
+    if (typeof incoming !== 'object') throw new Error();
+    const current  = getVotes();
+    Object.entries(incoming).forEach(([id, count]) => {
+      current[id] = (current[id] || 0) + Number(count);
+    });
+    saveVotes(current);
+    if (parsed.students) saveStudents(getStudents() + Number(parsed.students));
+    closeImport();
+    refreshDashboard();
+  } catch {
+    document.getElementById('import-error').textContent = 'JSON inválido. Verifica el formato.';
+  }
+}
+
+function clearData() {
+  if (confirm('¿Seguro que deseas eliminar TODOS los votos registrados?')) {
+    saveVotes({});
+    saveStudents(0);
+    refreshDashboard();
+  }
+}
+</script>
+</body>
+</html>
