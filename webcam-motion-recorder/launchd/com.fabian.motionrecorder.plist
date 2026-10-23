@@ -8,6 +8,8 @@
 
     <key>ProgramArguments</key>
     <array>
+        <string>/usr/bin/caffeinate</string>
+        <string>-ism</string>
         <string>/Users/mac/votacion-practica/webcam-motion-recorder/venv/bin/python3</string>
         <string>/Users/mac/votacion-practica/webcam-motion-recorder/motion_recorder.py</string>
         <string>--no-preview</string>
@@ -20,10 +22,10 @@
     <true/>
 
     <key>KeepAlive</key>
-    <dict>
-        <key>SuccessfulExit</key>
-        <false/>
-    </dict>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
 
     <key>StandardOutPath</key>
     <string>/Users/mac/Library/Logs/motion-recorder.out.log</string>

@@ -105,6 +105,38 @@ aparece ninguna, corre el script una vez manualmente desde la Terminal
 (como ya hiciste) para que macOS registre el permiso, y luego vuelve a
 cargar el agente con `launchctl load`.
 
+## 6. Que nunca se detenga
+
+El programa está diseñado para correr 24/7 sin pararse, con tres capas de
+protección:
+
+1. **Reconexión automática de cámara**: si falla la lectura de la cámara
+   (sueño del sistema, cable USB, etc.), reintenta con espera creciente en
+   vez de cerrarse.
+2. **Supervisor interno**: si ocurre un error inesperado, se registra en el
+   log y el programa se reinicia solo a los 5 segundos, sin salir del
+   proceso.
+3. **`launchd` con `KeepAlive`**: si aun así el proceso llegara a terminar
+   por completo, macOS lo vuelve a lanzar automáticamente (ya actualizado
+   en el plist de este repo — vuelve a copiarlo si lo instalaste antes de
+   este cambio).
+
+El plist también envuelve el programa con `caffeinate -ism`, para evitar
+que el Mac entre en reposo por inactividad mientras graba (no hace falta
+mantener la pantalla encendida). **Si tu Mac tiene un horario de apagado o
+suspensión programado** (Ajustes del Sistema → Energía → "Horario"),
+`caffeinate` no lo anula — desactiva ese horario si quieres grabación
+realmente continua.
+
+Si ya tenías el `launchd` cargado desde antes, actualízalo así para que
+tome el plist nuevo:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.fabian.motionrecorder.plist
+cp launchd/com.fabian.motionrecorder.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.fabian.motionrecorder.plist
+```
+
 Si moviste la carpeta del proyecto a otra ruta, edita las rutas dentro de
 `launchd/com.fabian.motionrecorder.plist` antes de copiarlo.
 

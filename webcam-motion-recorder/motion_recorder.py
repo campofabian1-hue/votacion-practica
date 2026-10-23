@@ -65,24 +65,40 @@ def open_writer(path, fourcc, fps, size):
     return writer
 
 
-def main():
-    args = parse_args()
+def log(msg):
+    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{ts}] {msg}", flush=True)
 
-    cap = cv2.VideoCapture(args.camera_index)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
-    cap.set(cv2.CAP_PROP_FPS, args.fps)
 
-    if not cap.isOpened():
-        print("No se pudo abrir la cámara. Revisa permisos de cámara "
-              "(macOS: Ajustes > Privacidad y seguridad > Cámara).",
-              file=sys.stderr)
-        sys.exit(1)
+def open_camera(args, attempts=10, base_delay=2.0, max_delay=30.0):
+    """Abre la cámara reintentando con backoff. Nunca se rinde del todo:
+    sigue intentando indefinidamente tras `attempts`, cada `max_delay` s,
+    para que un corte temporal de la cámara (sueño del sistema, USB
+    desconectado, etc.) no mate el proceso."""
+    delay = base_delay
+    attempt = 0
+    while True:
+        attempt += 1
+        cap = cv2.VideoCapture(args.camera_index)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+        cap.set(cv2.CAP_PROP_FPS, args.fps)
+        if cap.isOpened():
+            ok, frame = cap.read()
+            if ok:
+                return cap, frame
+            cap.release()
+        log(f"No se pudo abrir/leer la cámara (intento {attempt}). "
+            f"Reintentando en {delay:.0f}s...")
+        time.sleep(delay)
+        if attempt < attempts:
+            delay = min(delay * 2, max_delay)
+        else:
+            delay = max_delay
 
-    ok, frame = cap.read()
-    if not ok:
-        print("La cámara no entregó ningún frame.", file=sys.stderr)
-        sys.exit(1)
+
+def run(args):
+    cap, frame = open_camera(args)
 
     size = (frame.shape[1], frame.shape[0])
     fourcc = cv2.VideoWriter_fourcc(*args.codec)
@@ -96,16 +112,38 @@ def main():
     recording = False
     last_motion_time = 0.0
     clip_frame_count = 0
+    consecutive_read_failures = 0
+    max_consecutive_failures = 10
 
-    print(f"Grabando a: {args.output_dir}")
-    print("Esperando movimiento... (Ctrl+C para salir)")
+    log(f"Grabando a: {args.output_dir}")
+    log("Esperando movimiento... (Ctrl+C para salir)")
 
     try:
         while True:
             ok, frame = cap.read()
+
             if not ok:
-                print("Se perdió la señal de la cámara.", file=sys.stderr)
-                break
+                consecutive_read_failures += 1
+                log(f"Lectura de cámara fallida ({consecutive_read_failures}"
+                    f"/{max_consecutive_failures}).")
+                if consecutive_read_failures >= max_consecutive_failures:
+                    log("Perdimos la cámara. Cerrando y reabriendo...")
+                    if writer is not None:
+                        writer.release()
+                        writer = None
+                        recording = False
+                    cap.release()
+                    cap, frame = open_camera(args)
+                    prev_gray = cv2.GaussianBlur(
+                        cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (21, 21), 0)
+                    buffer.clear()
+                    consecutive_read_failures = 0
+                    log("Cámara reconectada. Esperando movimiento...")
+                    continue
+                time.sleep(0.5)
+                continue
+
+            consecutive_read_failures = 0
 
             gray = cv2.GaussianBlur(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (21, 21), 0)
             delta = cv2.absdiff(prev_gray, gray)
@@ -135,7 +173,7 @@ def main():
                     buffer.clear()
                     recording = True
                     last_motion_time = now
-                    print(f"[{ts}] Movimiento detectado -> grabando {out_path}")
+                    log(f"Movimiento detectado -> grabando {out_path}")
             else:
                 writer.write(frame)
                 clip_frame_count += 1
@@ -146,8 +184,8 @@ def main():
                     writer = None
                     recording = False
                     duration = clip_frame_count / args.fps
-                    print(f"  Clip guardado ({duration:.1f}s). "
-                          "Esperando movimiento...")
+                    log(f"Clip guardado ({duration:.1f}s). "
+                        "Esperando movimiento...")
 
             if not args.no_preview:
                 display = frame.copy()
@@ -164,10 +202,30 @@ def main():
     finally:
         if writer is not None:
             writer.release()
-            print("Clip final guardado al salir.")
+            log("Clip final guardado al salir.")
         cap.release()
         cv2.destroyAllWindows()
-        print("Listo.")
+        log("Listo.")
+
+
+def main():
+    args = parse_args()
+    # Bucle de supervisión: si algo inesperado revienta run() (una excepción
+    # no prevista, un fallo de OpenCV, etc.), lo registramos y reiniciamos
+    # todo el pipeline en vez de dejar morir el proceso. Combinado con el
+    # KeepAlive de launchd, esto hace que el grabador nunca se quede
+    # detenido de forma permanente.
+    while True:
+        try:
+            run(args)
+            break  # salida limpia (Ctrl+C / 'q' en modo con preview)
+        except KeyboardInterrupt:
+            break
+        except Exception:
+            import traceback
+            log("Error inesperado, reiniciando en 5s:")
+            traceback.print_exc()
+            time.sleep(5)
 
 
 if __name__ == "__main__":
