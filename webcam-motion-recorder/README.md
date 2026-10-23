@@ -66,17 +66,47 @@ Ejemplo con menos sensibilidad y clips más largos:
 python3 motion_recorder.py --sensitivity 35 --min-area 4000 --cooldown 8 --no-preview
 ```
 
-## 5. Correr en segundo plano / al iniciar sesión (opcional)
+## 5. Correr en segundo plano / al iniciar sesión
 
-Para que arranque solo al iniciar sesión en macOS, créa un `launchd` plist en
-`~/Library/LaunchAgents/com.user.motionrecorder.plist` que ejecute:
+Ya incluye un `launchd` plist listo en `launchd/com.fabian.motionrecorder.plist`,
+configurado para la ruta `/Users/mac/votacion-practica/webcam-motion-recorder`.
 
+**Instalar:**
+
+```bash
+cp launchd/com.fabian.motionrecorder.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.fabian.motionrecorder.plist
 ```
-/ruta/a/webcam-motion-recorder/venv/bin/python3 /ruta/a/webcam-motion-recorder/motion_recorder.py --no-preview
+
+A partir de ahora arranca solo cada vez que inicias sesión en el Mac, sin
+necesidad de abrir la Terminal ni la ventana de vista previa (corre con
+`--no-preview`).
+
+**Verificar que está corriendo:**
+
+```bash
+launchctl list | grep motionrecorder
+tail -f ~/Library/Logs/motion-recorder.out.log
 ```
 
-y cárgalo con `launchctl load ~/Library/LaunchAgents/com.user.motionrecorder.plist`.
-Pide ayuda si quieres que te genere ese plist.
+**Detenerlo / desinstalarlo:**
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.fabian.motionrecorder.plist
+rm ~/Library/LaunchAgents/com.fabian.motionrecorder.plist
+```
+
+**Importante — permiso de cámara:** `launchd` ejecuta el `python3` del venv
+directamente, no a través de la Terminal, así que macOS debe autorizar ese
+binario específico para usar la cámara. Si el log de errores muestra que no
+puede abrir la cámara: ve a **Ajustes del Sistema → Privacidad y Seguridad →
+Cámara** y revisa si aparece una entrada para Python (actívala); si no
+aparece ninguna, corre el script una vez manualmente desde la Terminal
+(como ya hiciste) para que macOS registre el permiso, y luego vuelve a
+cargar el agente con `launchctl load`.
+
+Si moviste la carpeta del proyecto a otra ruta, edita las rutas dentro de
+`launchd/com.fabian.motionrecorder.plist` antes de copiarlo.
 
 ## Cómo funciona la detección de movimiento
 
