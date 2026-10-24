@@ -98,12 +98,50 @@ rm ~/Library/LaunchAgents/com.fabian.motionrecorder.plist
 
 **Importante — permiso de cámara:** `launchd` ejecuta el `python3` del venv
 directamente, no a través de la Terminal, así que macOS debe autorizar ese
-binario específico para usar la cámara. Si el log de errores muestra que no
-puede abrir la cámara: ve a **Ajustes del Sistema → Privacidad y Seguridad →
-Cámara** y revisa si aparece una entrada para Python (actívala); si no
-aparece ninguna, corre el script una vez manualmente desde la Terminal
-(como ya hiciste) para que macOS registre el permiso, y luego vuelve a
-cargar el agente con `launchctl load`.
+binario específico para usar la cámara. Es un permiso distinto al que ya
+diste cuando corriste el script manualmente la primera vez.
+
+**Cómo saber si es este el problema:** revisa el log de errores:
+```bash
+tail -20 ~/Library/Logs/motion-recorder.err.log
+```
+Si ves estas líneas, es exactamente esto:
+```
+OpenCV: not authorized to capture video (status 0), requesting...
+OpenCV: camera failed to properly initialize!
+```
+Y en el log normal (`motion-recorder.out.log`) verás "No se pudo abrir/leer
+la cámara (intento N)" repitiéndose sin parar — nunca se resuelve solo,
+porque no es un corte de señal sino un bloqueo de permisos.
+
+**Cómo arreglarlo:**
+
+```bash
+# 1. Detén el agente que sigue fallando en bucle
+launchctl unload ~/Library/LaunchAgents/com.fabian.motionrecorder.plist
+
+# 2. Resetea los permisos de cámara para forzar que macOS vuelva a preguntar
+tccutil reset Camera
+
+# 3. Corre el script manualmente UNA vez, en primer plano
+cd ~/votacion-practica/webcam-motion-recorder
+source venv/bin/activate
+python3 motion_recorder.py
+```
+Debe aparecer un diálogo del sistema pidiendo acceso a la cámara — dale
+**"Permitir"**. Si se abre la ventana con el video, funcionó: presiona
+`Ctrl+C` para detenerlo, y vuelve a cargar el agente en segundo plano:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.fabian.motionrecorder.plist
+```
+
+Verifica que quedó grabando normalmente:
+```bash
+tail -20 ~/Library/Logs/motion-recorder.out.log
+```
+Deberías ver "Esperando movimiento..." y clips guardándose, sin errores
+repetidos.
 
 ## 6. Que nunca se detenga
 
