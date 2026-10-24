@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.fabian.dlinkrecorder</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/caffeinate</string>
+        <string>-ism</string>
+        <string>/Users/mac/votacion-practica/webcam-motion-recorder/venv/bin/python3</string>
+        <string>/Users/mac/votacion-practica/webcam-motion-recorder/ip_camera_recorder.py</string>
+        <string>--camera-ip</string>
+        <string>REEMPLAZA_CON_LA_IP</string>
+        <string>--camera-name</string>
+        <string>dlink</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/mac/votacion-practica/webcam-motion-recorder</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/mac/Library/Logs/dlink-recorder.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/mac/Library/Logs/dlink-recorder.err.log</string>
+</dict>
+</plist>
