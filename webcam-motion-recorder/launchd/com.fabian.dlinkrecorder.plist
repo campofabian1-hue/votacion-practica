@@ -13,9 +13,13 @@
         <string>/Users/mac/votacion-practica/webcam-motion-recorder/venv/bin/python3</string>
         <string>/Users/mac/votacion-practica/webcam-motion-recorder/ip_camera_recorder.py</string>
         <string>--camera-ip</string>
-        <string>REEMPLAZA_CON_LA_IP</string>
+        <string>192.168.1.13</string>
         <string>--camera-name</string>
         <string>dlink</string>
+        <string>--poll-fps</string>
+        <string>8</string>
+        <string>--record-fps</string>
+        <string>8</string>
     </array>
 
     <key>WorkingDirectory</key>
