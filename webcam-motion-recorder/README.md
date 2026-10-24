@@ -246,6 +246,35 @@ que actualizar `--camera-ip` en el plist, recargarlo (`unload` + editar +
 `load`), o fijarle una IP reservada/estática en la configuración del
 router para que esto no vuelva a pasar.
 
+### Configuración de imagen que sí funciona (y la que no)
+
+Esta cámara tiene un procesador muy débil para generar JPEG — si se le
+exige demasiado (mucha resolución + mucho IPS + mucha calidad, todo junto
+o `--poll-fps` muy alto), empieza a entregar fotos corruptas (se ven con
+bloques de color sólido, verdes o negros) en vez de fallar con un error
+claro. Configuración probada y estable:
+
+| Ajuste (en la cámara) | Valor que funciona | Notas |
+|---|---|---|
+| Resolución (CONFIGURACIÓN → VÍDEO) | **640 x 480** | Probado estable. 320x240 también funciona si se quiere más margen. |
+| IPS | **Automático** | Fijarlo en un número alto (ej. 30) sobrecarga el procesador incluso a bajo `--poll-fps`. |
+| Calidad Jpeg | **Media** | "Alta"/"Muy alto" aumentan el riesgo de corrupción. |
+| Control del brillo / contraste | **+0 / +0** (default) | No se ha logrado subirlos sin que la imagen falle — pendiente de probar con más cuidado, un ajuste a la vez. |
+| `--poll-fps` / `--record-fps` (script) | **3** | A 5 y 8 fps se corrompía, incluso con los demás ajustes en default. |
+
+**Regla de oro con esta cámara:** cambiar **un solo ajuste a la vez**
+(ya sea en la cámara o en `--poll-fps`), probar con una grabación manual,
+y solo seguir al siguiente cambio si el video sale limpio. Cambiar varios
+ajustes juntos hace muy difícil saber cuál causó la corrupción si algo
+falla.
+
+**Si la imagen sale corrupta (bloques de color) y no se resuelve bajando
+los ajustes:** apaga la cámara por completo (cable de corriente, no solo
+reinicio), espera 15 segundos, y si persiste, hazle un reset de fábrica
+completo (botón RESET 10-12s) y repite la configuración desde cero
+(sección de arriba), dejando todos los ajustes de imagen en sus valores
+de fábrica la primera vez, antes de subir la resolución.
+
 ## Cómo funciona la detección de movimiento
 
 Compara cada frame en escala de grises contra un "fondo" que se actualiza
