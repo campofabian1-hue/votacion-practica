@@ -104,7 +104,16 @@ def make_snapshot_fetcher(args):
             resp = session.get(url, params=params, auth=auth,
                                 timeout=args.timeout)
         resp.raise_for_status()
-        data = np.frombuffer(resp.content, dtype=np.uint8)
+        content = resp.content
+        # Esta cámara, cuando se le pide fotos más rápido de lo que su CPU
+        # puede generar, a veces entrega un JPEG cortado a la mitad en vez
+        # de fallar con un error HTTP. cv2.imdecode puede "decodificar" eso
+        # igual y devolver una imagen con bloques de basura en vez de
+        # lanzar una excepción, así que validamos el marcador de fin de
+        # JPEG (FF D9) antes de confiar en los datos.
+        if len(content) < 100 or content[-2:] != b"\xff\xd9":
+            raise RuntimeError("Snapshot incompleto/corrupto (JPEG truncado)")
+        data = np.frombuffer(content, dtype=np.uint8)
         frame = cv2.imdecode(data, cv2.IMREAD_COLOR)
         if frame is None:
             raise RuntimeError("Snapshot recibido pero no se pudo decodificar")
@@ -162,6 +171,10 @@ def run(args):
 
             try:
                 frame = fetch()
+                if (frame.shape[1], frame.shape[0]) != size:
+                    raise RuntimeError(
+                        f"Snapshot con tamaño inesperado {frame.shape[1]}x"
+                        f"{frame.shape[0]} (se esperaba {size[0]}x{size[1]})")
                 consecutive_failures = 0
             except Exception as exc:
                 consecutive_failures += 1

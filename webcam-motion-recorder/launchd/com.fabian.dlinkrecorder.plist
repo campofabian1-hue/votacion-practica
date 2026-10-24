@@ -17,9 +17,9 @@
         <string>--camera-name</string>
         <string>dlink</string>
         <string>--poll-fps</string>
-        <string>8</string>
+        <string>5</string>
         <string>--record-fps</string>
-        <string>8</string>
+        <string>5</string>
     </array>
 
     <key>WorkingDirectory</key>
